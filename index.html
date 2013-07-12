@@ -1,0 +1,594 @@
+<?php require_once('../Connections/Main.php'); ?>
+<?php
+if (!function_exists("GetSQLValueString")) {
+function GetSQLValueString($theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
+{
+  if (PHP_VERSION < 6) {
+    $theValue = get_magic_quotes_gpc() ? stripslashes($theValue) : $theValue;
+  }
+
+  $theValue = function_exists("mysql_real_escape_string") ? mysql_real_escape_string($theValue) : mysql_escape_string($theValue);
+
+  switch ($theType) {
+    case "text":
+      $theValue = ($theValue != "") ? "'" . $theValue . "'" : "NULL";
+      break;    
+    case "long":
+    case "int":
+      $theValue = ($theValue != "") ? intval($theValue) : "NULL";
+      break;
+    case "double":
+      $theValue = ($theValue != "") ? doubleval($theValue) : "NULL";
+      break;
+    case "date":
+      $theValue = ($theValue != "") ? "'" . $theValue . "'" : "NULL";
+      break;
+    case "defined":
+      $theValue = ($theValue != "") ? $theDefinedValue : $theNotDefinedValue;
+      break;
+  }
+  return $theValue;
+}
+}
+
+//initialize the session
+if (!isset($_SESSION)) {
+  session_start();
+}
+
+if($_COOKIE['MM_Username'])
+{
+	mysql_select_db($database_Main, $Main);
+  
+  	$LoginRS__query=sprintf("SELECT email FROM users WHERE email=%s",
+    	GetSQLValueString($_COOKIE['MM_Username'], "text")); 
+   
+  	$LoginRS = mysql_query($LoginRS__query, $Main) or die(mysql_error());
+  	$loginFoundUser = mysql_num_rows($LoginRS);
+	
+	if ($loginFoundUser) {
+		$_SESSION['MM_Username'] = $_COOKIE['MM_Username'];
+		$_SESSION['MM_UserGroup'] = $_COOKIE['MM_UserGroup'];
+	}
+}
+
+?>
+<?php
+//initialize the session
+session_start();
+//globals
+$bleep_word = "*bleep*";
+$site_url = "blog.blueloopmedia.com";
+$currentPage = $_SERVER["PHP_SELF"];
+
+function GetSQLValueString($theValue, $theType, $theDefinedValue = "", $theNotDefinedValue = "") 
+{
+  $theValue = (!get_magic_quotes_gpc()) ? addslashes($theValue) : $theValue;
+
+  switch ($theType) {
+    case "text":
+      $theValue = ($theValue != "") ? "'" . $theValue . "'" : "NULL";
+      break;    
+    case "long":
+    case "int":
+      $theValue = ($theValue != "") ? intval($theValue) : "NULL";
+      break;
+    case "double":
+      $theValue = ($theValue != "") ? "'" . doubleval($theValue) . "'" : "NULL";
+      break;
+    case "date":
+      $theValue = ($theValue != "") ? "'" . $theValue . "'" : "NULL";
+      break;
+    case "defined":
+      $theValue = ($theValue != "") ? $theDefinedValue : $theNotDefinedValue;
+      break;
+  }
+  return $theValue;
+}
+
+$search_string = (empty($_GET['search'])) ? "%" : "%" . $_GET['search'] . "%";
+ 
+
+if (isset($_POST['text_blog_author'])) {
+	setcookie("blog_author", $_POST['text_blog_author'], time()+60*60*24*30);
+}
+
+$editFormAction = $_SERVER['PHP_SELF'];
+if (isset($_SERVER['QUERY_STRING'])) {
+  $editFormAction .= "?" . htmlentities($_SERVER['QUERY_STRING']);
+}
+
+mysql_select_db($database_Main, $Main);
+$query_RecordsetBadWords = "SELECT * FROM badwords";
+$RecordsetBadWords = mysql_query($query_RecordsetBadWords, $Main) or die(mysql_error());
+$row_RecordsetBadWords = mysql_fetch_assoc($RecordsetBadWords);
+$totalRows_RecordsetBadWords = mysql_num_rows($RecordsetBadWords);
+
+function makeClean($txt, $rs) {
+	do {
+		$txt = str_replace ($row_RecordsetBadWords['badwords_word'], '*beep*', $txt);
+	} while ($row_RecordsetBadWords = mysql_fetch_assoc($rs));
+	return $txt;
+}
+
+
+
+$maxRows_RecordsetBlog = 30;
+$pageNum_RecordsetBlog = 0;
+if (isset($_GET['pageNum_RecordsetBlog'])) {
+  $pageNum_RecordsetBlog = $_GET['pageNum_RecordsetBlog'];
+}
+$startRow_RecordsetBlog = $pageNum_RecordsetBlog * $maxRows_RecordsetBlog;
+
+mysql_select_db($database_Main, $Main);
+if(isset($_GET['select_show']) && $_GET['select_show'] != '') {
+	$query_RecordsetBlog = "SELECT * FROM blog WHERE blog_category LIKE '%%\"" . $_GET['select_show'] . "\"%%' ORDER BY blog_id DESC";
+} else {
+	$query_RecordsetBlog = "SELECT * FROM blog WHERE blog_text LIKE '$search_string' ORDER BY blog_id DESC";
+}
+
+
+$query_limit_RecordsetBlog = sprintf("%s LIMIT %d, %d", $query_RecordsetBlog, $startRow_RecordsetBlog, $maxRows_RecordsetBlog);
+$RecordsetBlog = mysql_query($query_limit_RecordsetBlog, $Main) or die(mysql_error());
+$row_RecordsetBlog = mysql_fetch_assoc($RecordsetBlog);
+
+if (isset($_GET['totalRows_RecordsetBlog'])) {
+  $totalRows_RecordsetBlog = $_GET['totalRows_RecordsetBlog'];
+} else {
+  $all_RecordsetBlog = mysql_query($query_RecordsetBlog);
+  $totalRows_RecordsetBlog = mysql_num_rows($all_RecordsetBlog);
+}
+$totalPages_RecordsetBlog = ceil($totalRows_RecordsetBlog/$maxRows_RecordsetBlog)-1;
+
+$colname_RecordsetUser = "1";
+if (isset($_SESSION['MM_Username'])) {
+  $colname_RecordsetUser = (get_magic_quotes_gpc()) ? $_SESSION['MM_Username'] : addslashes($_SESSION['MM_Username']);
+}
+mysql_select_db($database_Main, $Main);
+$query_RecordsetUser = sprintf("SELECT * FROM users INNER JOIN rights ON users.rights=rights.rights_id WHERE email = '%s'", $colname_RecordsetUser);
+$RecordsetUser = mysql_query($query_RecordsetUser, $Main) or die(mysql_error());
+$row_RecordsetUser = mysql_fetch_assoc($RecordsetUser);
+$totalRows_RecordsetUser = mysql_num_rows($RecordsetUser);
+
+mysql_select_db($database_Main, $Main);
+$query_RecordsetCategory = "SELECT * FROM blog_category";
+$RecordsetCategory = mysql_query($query_RecordsetCategory, $Main) or die(mysql_error());
+$row_RecordsetCategory = mysql_fetch_assoc($RecordsetCategory);
+$totalRows_RecordsetCategory = mysql_num_rows($RecordsetCategory);
+
+$queryString_RecordsetBlog = "";
+if (!empty($_SERVER['QUERY_STRING'])) {
+  $params = explode("&", $_SERVER['QUERY_STRING']);
+  $newParams = array();
+  foreach ($params as $param) {
+    if (stristr($param, "pageNum_RecordsetBlog") == false && 
+        stristr($param, "totalRows_RecordsetBlog") == false) {
+      array_push($newParams, $param);
+    }
+  }
+  if (count($newParams) != 0) {
+    $queryString_RecordsetBlog = "&" . htmlentities(implode("&", $newParams));
+  }
+}
+$queryString_RecordsetBlog = sprintf("&totalRows_RecordsetBlog=%d%s", $totalRows_RecordsetBlog, $queryString_RecordsetBlog);
+
+// calender_search 
+mysql_select_db($database_Main, $Main);
+$query_rsArticleDates = "SELECT date_format(blog_datetime, '%Y-%c-%e') as ArticleDate FROM blog";
+$rsArticleDates = mysql_query($query_rsArticleDates, $Main) or die(mysql_error());
+$row_rsArticleDates = mysql_fetch_assoc($rsArticleDates);
+$totalRows_rsArticleDates = mysql_num_rows($rsArticleDates);
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bLoG</title>
+
+<script src="http://code.jquery.com/jquery-latest.js"></script> 
+<script src="/bootstrap/js/bootstrap.min.js"></script>
+
+<!-- Skin CSS file -->
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.3.1/build/assets/skins/sam/skin.css">
+<!-- Utility Dependencies -->
+<script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+<script type="text/javascript" src="http://yui.yahooapis.com/2.3.1/build/element/element-beta-min.js"></script>
+<!-- Needed for Menus, Buttons and Overlays used in the Toolbar -->
+<script src="http://yui.yahooapis.com/2.3.1/build/container/container_core-min.js"></script>
+<script src="http://yui.yahooapis.com/2.3.1/build/menu/menu-min.js"></script>
+<script src="http://yui.yahooapis.com/2.3.1/build/button/button-beta-min.js"></script>
+<!-- Source file for Rich Text Editor-->
+<script src="http://yui.yahooapis.com/2.3.1/build/editor/editor-beta-min.js"></script>
+<!-- Source for Connection Manager (Required for yuiImageUploader) -->
+<script src="http://yui.yahooapis.com/2.3.1/build/connection/connection-min.js"></script>
+
+<!-- http://allmybrain.com/2007/10/16/an-image-upload-extension-for-yui-rich-text-editor/ -->
+<script src="../scripts/yui/extensions/yui-image-uploader.js"></script>
+
+
+<script type="text/javascript">
+
+var numberOfBlogs = 30;
+var numberOfBlogsMore = 10;
+var timeIntervalLoadAjaxBlogContent = 5 * 60 * 1000;
+
+var deviceAgent = navigator.userAgent.toLowerCase();
+var agentID = deviceAgent.match(/(iphone|ipod|ipad)/);
+
+var editLinkCountInterval = 20;
+
+var myEditor;
+
+$('document').ready(function() {
+	
+	$('.post_menu_tools').hide();
+	$('#menu_tools').hide();
+	$('#div_new_blog').hide();
+	
+	$('#button_new_blog').click(function() {
+		$(this).hide();
+		$('#div_new_blog').show();
+	});
+	
+	$('#loginDiv').load('ajax_login.php', function() {	
+		$('#loginBtn').click(function() {			
+			postLogin();			
+		});	
+		$('#password').keypress(function(event) {
+			if(event.keyCode == '13')
+			{			
+				postLogin();
+			}
+		});
+	});
+	
+	$('#showMoreBlogsLink').click(function() {		
+		loadAjaxBlogContent(numberOfBlogs = numberOfBlogs + numberOfBlogsMore);
+	});
+	
+	$('#button_submit').click(function() {
+		$('#div_new_blog').hide();
+		$('.post_menu_tools').show();
+		postNewBlog();
+	});	
+	
+	$('#link_cancel').click(function() {
+		$('#div_new_blog').hide();
+		$('.post_menu_tools').show();
+		$("#button_new_blog").show();
+		loadAjaxBlogContent();
+		myEditor.setEditorHTML('');	
+	});
+	
+	myEditor = new YAHOO.widget.Editor('newBlogText', {
+		handleSubmit: true,
+		height: '300px',
+		width: '100%'
+	});	
+	yuiImgUploader(myEditor, '/upload/blog/index.php','image');
+	
+	
+	if (!agentID) // if not iPhone
+	{		
+		myEditor.render();
+	}
+	
+	<?php
+	if (isset($_SESSION['MM_Username'])) {
+	?>
+		$('#loginDiv').slideUp();
+		$('.post_menu_tools').fadeIn();
+		$('#showMoreBlogsLink').show();
+		loadToolbar();	
+	<?php
+	} 
+	?>	
+	
+	timeLoadAjaxBlogContent();
+	
+});
+
+
+function loadAjaxBlogContent(nob)
+{	
+	$('.AjaxLoaderBar').show();
+	if(!nob)
+	{
+		nob = numberOfBlogs;
+	}
+	$('#ajaxBlogContent').load('ajax_blog_content.php', { numberOfBlogs: nob }, function() {		
+		$('.AjaxLoaderBar').hide();
+		
+		if (agentID) // if iPhone resize flash
+		{
+			$("object").width(200);
+			$("object").height(150);
+		}
+		var dataBlogId = $('.editLink:first').attr('data-blog-id');
+		$(this).trigger('loadAjaxBlogContent', [ dataBlogId ]);
+							
+		$('.rateit-stars').click(function(event) {
+			var bid = $(this).attr('date-blog-id');
+			
+			$('#pane-rateit-' + bid)
+				.show()
+				.attr('src', '/blog/popup_rateit.php?blog_id=' + bid)
+				.mouseleave(function() {
+					$(this).hide();
+				});			
+
+		});
+		
+		$('.date-stamp').tooltip({ html: true, placement: 'left' });
+
+		
+	});
+}
+
+function timeLoadAjaxBlogContent()
+{
+	loadAjaxBlogContent();
+	setTimeout ( "timeLoadAjaxBlogContent()", timeIntervalLoadAjaxBlogContent);	
+}
+
+
+function postLogin()
+{
+
+	$.post('ajax_login.php', $('#loginForm').serialize(), function(data) {
+		switch(data)
+		{
+			case "1":
+			{
+				$('#loginDiv').slideUp();
+				loadAjaxBlogContent();
+				$('.post_menu_tools').fadeIn();
+				loadToolbar();
+				break;
+			}
+			case "0":
+			{
+				alert("Wrong Email and/or Password. Try agin!");
+				break;
+			}
+		}
+	
+	});
+}
+
+
+var setIntTimer;
+var setTimeoutTimer;
+function postNewBlog()
+{
+	if (!agentID) 
+	{
+		myEditor.saveHTML();
+	}
+	$.post('ajax_new_blog.php', $('#form_insert').serialize(), function(data) {
+		loadAjaxBlogContent();
+		myEditor.setEditorHTML('');
+		$("#button_new_blog").show();
+		
+		$('#ajaxBlogContent').one('loadAjaxBlogContent', function(e, bid) {
+			
+			var fe = $('a[data-blog-id= ' + bid + ']');			
+			
+			$('.editLinkPane').hide();
+			
+			var editLinkCountInt = editLinkCountInterval;			
+			
+			$('.editLinkTimer', fe).text(' (' + editLinkCountInt-- + ')');			
+			
+			$(fe).closest('.editLinkPane').show();					
+			
+			setIntTimer = setInterval(function() {
+				
+				$('.editLinkTimer', fe).text(' (' + editLinkCountInt--  + ')');
+				
+				if(editLinkCountInt === -1) {
+					clearInterval(setIntTimer);
+					$('.editLinkPane').hide();	
+				}
+				
+			},1000);			
+									
+			$(fe).click(function(e) {
+				var blogId = $(e.currentTarget).attr('data-blog-id');
+												
+				$('#ajaxBlogContent').data('current-edit-blog-id', blogId)								
+				$('#div_new_blog').show();
+				myEditor.render();				
+										
+				myEditor.setEditorHTML($('#blog_' + blogId + ' .blog_text' ).html());
+				
+				
+				$('#button_submit').one('click', function() {
+					var bid = $('#ajaxBlogContent').data('current-edit-blog-id');					
+					deleteBlog(bid);					
+				});				
+				
+			});
+			
+		});
+		 		
+	});
+}
+
+function loadToolbar()
+{
+	$('#ajaxToolbarContent').load('ajax_toolbar.php', function() {
+		$('#menu_tools').show(1000, 'swing');		
+	});
+}
+
+function deleteBlog(bid) 
+{		
+	$.ajax({
+		url:'ajax_del_blog.php',		 
+		type: 'POST',
+		data: {		
+			MM_update: 'ajax',
+			MM_Username: '<?php echo $_SESSION['MM_Username'] ?>',
+			blog_deleted: 1,
+			blog_id: bid 
+		},
+		error: function(jqXHR, textStatus, errorThrown) {
+			alert(errorThrown);
+		},
+		complete: function(json) {
+			$("#blog_blog_" + bid).hide();
+		}
+	});
+}
+
+</script>
+<script language="JavaScript" type="text/JavaScript">
+<!--
+window.name = "blueloopmedia_blog";
+// global vars
+var popup_blog_alert_window = null;
+var popup_rateit_window = null;
+
+function noNothing() {
+	
+}
+
+function setDateTime() {
+	rightnow = new Date();
+	//document.form_insert.text_datetime.value = rightnow.time();
+}
+
+function MM_findObj(n, d) { //v4.01
+  var p,i,x;  if(!d) d=document; if((p=n.indexOf("?"))>0&&parent.frames.length) {
+    d=parent.frames[n.substring(p+1)].document; n=n.substring(0,p);}
+  if(!(x=d[n])&&d.all) x=d.all[n]; for (i=0;!x&&i<d.forms.length;i++) x=d.forms[i][n];
+  for(i=0;!x&&d.layers&&i<d.layers.length;i++) x=MM_findObj(n,d.layers[i].document);
+  if(!x && d.getElementById) x=d.getElementById(n); return x;
+}
+
+function MM_changeProp(objName,x,theProp,theValue) { //v6.0
+  var obj = MM_findObj(objName);
+  if (obj && (theProp.indexOf("style.")==-1 || obj.style)){
+    if (theValue == true || theValue == false)
+      eval("obj."+theProp+"="+theValue);
+    else eval("obj."+theProp+"='"+theValue+"'");
+  }
+}
+
+function MM_validateForm() { //v4.0
+  var i,p,q,nm,test,num,min,max,errors='',args=MM_validateForm.arguments;
+  for (i=0; i<(args.length-2); i+=3) { test=args[i+2]; val=MM_findObj(args[i]);
+    if (val) { nm=val.name; if ((val=val.value)!="") {
+      if (test.indexOf('isEmail')!=-1) { p=val.indexOf('@');
+        if (p<1 || p==(val.length-1)) errors+='- '+nm+' must contain an e-mail address.\n';
+      } else if (test!='R') { num = parseFloat(val);
+        if (isNaN(val)) errors+='- '+nm+' must contain a number.\n';
+        if (test.indexOf('inRange') != -1) { p=test.indexOf(':');
+          min=test.substring(8,p); max=test.substring(p+1);
+          if (num<min || max<num) errors+='- '+nm+' must contain a number between '+min+' and '+max+'.\n';
+    } } } else if (test.charAt(0) == 'R') errors += '- '+nm+' is required.\n'; }
+  } if (errors) alert('The following error(s) occurred:\n'+errors);
+  document.MM_returnValue = (errors == '');
+}
+
+
+function MM_openBrWindow(theURL,winName,features) { //v2.0
+	return window.open(theURL,winName,features);
+}
+
+window.onclose = function() {
+	// close bLoG Alert Window
+	if (popup_blog_alert_window && popup_blog_alert_window.open && !popup_blog_alert_window.closed) popup_blog_alert_window.close();
+	
+	// close Rate It Window
+	if (popup_rateit_window && popup_rateit_window.open && !popup_rateit_window.closed) popup_rateit_window.close();
+}
+//-->
+</script>
+<style type="text/css">
+<!--
+
+-->
+</style>
+
+<link href="/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+<link href="/bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
+<link href="blog.css" rel="stylesheet" type="text/css" media="screen">
+</head>
+
+<body class="yui-skin-sam">
+
+
+<div class="container-fluid" id="div_body">
+
+
+<div id="loginDiv"></div>
+
+<div class="menu_tools" id="menu_tools">
+	<div id="ajaxToolbarContent"> </div>	
+</div>
+
+
+<a href="../blog/">
+	<h1><img src="../images/blog.png" alt="bLoG Logo" border="0" /></h1>
+</a>
+
+<a style="display:none;" href="https://docs.google.com/document/d/1uhDEeZx-TosAsxhQ5rC0ZAzhKM_vFJ_l-kGCfkpC47M/edit" target="_blank"><strong>Key West Log</strong></a>
+<div style="float:right; margin-bottom:10px;" class="post_menu_tools">		
+	
+	<input name="button_new_blog" type="button" class="button btn" id="button_new_blog" value="Create New bLoG" />	
+</div>
+
+<div id="div_new_blog">
+	<div class="div_frame">
+		<div class="r">
+			<div class="rt">
+				<div class="rb">
+					<div class="lb">
+						<div class="lt">
+							<div id="div_frame_body">
+							<form action="" method="post" name="form_insert" id="form_insert">
+								<textarea name="newBlogText" id="newBlogText" cols="100" rows="10"></textarea>
+								<br />
+								<div style="float:right">
+									<a id="link_cancel" href="javascript:">cancel</a>
+									&nbsp;&nbsp;
+									<input name="button_submit" id="button_submit" type="button" value="Share"  class="button btn btn-primary" />
+								</div>
+								<div style="clear:both"></div>
+								<input type="hidden" name="blog_secure_level" value="1" />
+    							<input type="hidden" name="MM_insert" value="form_insert">
+						   </form>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<?php if(isset($_GET['blog_message'])) { ?>
+	<p id="blog_message"><em><?php echo $_GET['blog_message'] ?></em></p>
+<?php } ?>
+<p align="center" style="clear:both;"><img class="AjaxLoaderBar" src="../images/ajax-loader-bar.gif" /></p>
+<div id="ajaxBlogContent"></div>
+
+<br />
+
+<p align="center" style="clear:both;"><a id="showMoreBlogsLink" class="ShowMoreBlogsLink" href="javascript:void(null)">Show more bLoGs<br /></a><img class="AjaxLoaderBar" src="../images/ajax-loader-bar.gif" /></p>
+<br />
+
+</div>
+</body>
+</html>
+<?php
+mysql_free_result($RecordsetBlog);
+
+mysql_free_result($RecordsetUser);
+
+mysql_free_result($RecordsetCategory);
+
+mysql_free_result($RecordsetBadWords);
+?>
