@@ -87,7 +87,7 @@ function GetSQLValueString($theValue, $theType, $theDefinedValue = "", $theNotDe
 }
 
 $search_string = (empty($_GET['search'])) ? "%" : "%" . $_GET['search'] . "%";
- 
+
 
 if (isset($_POST['text_blog_author'])) {
 	setcookie("blog_author", $_POST['text_blog_author'], time()+60*60*24*30);
@@ -519,7 +519,7 @@ window.onclose = function() {
 </head>
 
 <body class="yui-skin-sam">
-
+	<h1>This is an edit</h1>
 
 <div class="container-fluid" id="div_body">
 
